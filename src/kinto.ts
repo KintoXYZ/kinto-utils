@@ -616,6 +616,16 @@ const estimateGas = async (
   return gasParams;
 };
 
+// extract argument types from constructor
+const extractArgTypes = async (abi: Array<any>): Promise<Array<string>> => {
+  const constructorAbi = abi.find((element) => element.type === "constructor");
+  let argTypes: string[] = [];
+  if (constructorAbi && constructorAbi.inputs.length > 0) {
+    argTypes = constructorAbi.inputs.map((input: any) => input.type);
+  }
+  return argTypes;
+};
+
 export {
   isKinto,
   setFunderWhitelist,
@@ -623,4 +633,5 @@ export {
   deployOnKinto,
   whitelistApp,
   estimateGas,
+  extractArgTypes,
 };

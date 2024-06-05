@@ -15,7 +15,9 @@ yarn install
 `npx ts-node ./src/sign.ts <privateKey> <chainId>`
 
 ## Deploy Counter contract
+
 `npx ts-node src/samples/deployContract.ts`
 
 ## Incremenet counter
+
 `npx ts-node src/samples/callContract.ts`
