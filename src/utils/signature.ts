@@ -72,7 +72,7 @@ const signUserOp = async (
   const ethSignedHash = hashMessage(arrayify(hash));
 
   // check policy and required signers
-  // await checkPolicy(kintoWallet, privateKeys);
+  await checkPolicy(kintoWallet, privateKeys);
 
   let signature = "0x";
   for (const privateKey of privateKeys) {
