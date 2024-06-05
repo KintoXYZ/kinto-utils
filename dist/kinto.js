@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.estimateGas = exports.whitelistApp = exports.deployOnKinto = exports.handleOps = exports.setFunderWhitelist = exports.isKinto = void 0;
+exports.extractArgTypes = exports.estimateGas = exports.whitelistApp = exports.deployOnKinto = exports.handleOps = exports.setFunderWhitelist = exports.isKinto = void 0;
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
 const ethers_1 = require("ethers");
@@ -378,3 +378,13 @@ const estimateGas = (provider, entryPoint, userOps) => __awaiter(void 0, void 0,
     return gasParams;
 });
 exports.estimateGas = estimateGas;
+// extract argument types from constructor
+const extractArgTypes = (abi) => __awaiter(void 0, void 0, void 0, function* () {
+    const constructorAbi = abi.find((element) => element.type === "constructor");
+    let argTypes = [];
+    if (constructorAbi && constructorAbi.inputs.length > 0) {
+        argTypes = constructorAbi.inputs.map((input) => input.type);
+    }
+    return argTypes;
+});
+exports.extractArgTypes = extractArgTypes;

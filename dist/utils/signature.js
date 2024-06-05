@@ -57,7 +57,7 @@ const signUserOp = (kintoWalletAddr, userOp, chainId, privateKeys) => __awaiter(
     const hash = yield getUserOpHash(userOp, chainId);
     const ethSignedHash = (0, utils_1.hashMessage)((0, utils_1.arrayify)(hash));
     // check policy and required signers
-    // await checkPolicy(kintoWallet, privateKeys);
+    yield checkPolicy(kintoWallet, privateKeys);
     let signature = "0x";
     for (const privateKey of privateKeys) {
         if (privateKey == constants_1.TREZOR || privateKey == constants_1.LEDGER) {
