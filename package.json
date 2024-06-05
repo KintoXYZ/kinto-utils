@@ -1,5 +1,6 @@
 {
   "name": "kinto-utils",
+  "version": "1.0.0",
   "scripts": {
     "lint": "prettier \"./**\" --write",
     "build": "tsc"
