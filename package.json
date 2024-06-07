@@ -1,18 +1,21 @@
 {
   "name": "kinto-utils",
-  "version": "1.0.0",
+  "version": "1.0.24-test.2",
   "scripts": {
     "lint": "prettier \"./**\" --write",
     "build": "tsc"
   },
+  "dependencies": {
+    "ethers": "^5.6.6",
+    "ethers-v6": "npm:ethers@^6.6.0"
+  },
   "devDependencies": {
-    "@ethers-ext/signer-ledger": "^6.0.0-beta.1",
+    "@ledgerhq/hw-app-eth": "^6.36.1",
     "@ledgerhq/hw-transport-node-hid": "^6.28.6",
     "@trezor/connect": "^9.2.2",
     "@types/node": "^20.12.12",
     "@types/prompt-sync": "^4.2.3",
     "dotenv": "^16.4.5",
-    "ethers": "^5.6.6",
     "node-hid": "^3.0.0",
     "prettier": "^2.6.1",
     "prompt-sync": "^4.2.0",

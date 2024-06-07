@@ -16,21 +16,7 @@ class TrezorSigner extends Signer {
     super();
     this.provider = provider;
 
-    TrezorConnect.init({
-      popup: false, // render your own UI
-      debug: false, // see what's going on inside connect
-      manifest: {
-        email: "support@kinto.xyz",
-        appUrl: "kinto.xyz",
-      },
-      transports: ["BridgeTransport"],
-    })
-      .then(() => {
-        // console.log("Trezor is ready!");
-      })
-      .catch((error) => {
-        console.log(error.message);
-      });
+    this.init();
 
     TrezorConnect.on(TRANSPORT_EVENT, (event) => {
       if (event.type === TRANSPORT.ERROR) {
@@ -117,6 +103,24 @@ class TrezorSigner extends Signer {
         });
       }
     });
+  }
+
+  init() {
+    TrezorConnect.init({
+      popup: false, // render your own UI
+      debug: false, // see what's going on inside connect
+      manifest: {
+        email: "support@kinto.xyz",
+        appUrl: "kinto.xyz",
+      },
+      transports: ["BridgeTransport"],
+    })
+      .then(() => {
+        // console.log("Trezor is ready!");
+      })
+      .catch((error) => {
+        console.log(error.message);
+      });
   }
 
   async getAddress(): Promise<string> {

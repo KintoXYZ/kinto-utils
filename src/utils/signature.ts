@@ -9,7 +9,7 @@ import {
 } from "ethers/lib/utils";
 import { LEDGER, TREZOR } from "./constants";
 import TrezorSigner from "./trezorProvider";
-import { LedgerSigner } from "@ethers-ext/signer-ledger";
+import { LedgerSigner } from "./ledgerProvider";
 import HIDTransport from "@ledgerhq/hw-transport-node-hid";
 import { UserOperation } from "./types";
 import { kintoConfig } from "./constants";
@@ -118,8 +118,8 @@ const signWithHw = async (
 
     if (hwType === TREZOR) {
       const trezorSigner = new TrezorSigner(provider);
-      const signer = await trezorSigner.getAddress();
-      console.log(`\nSigning message: ${hash} with signer: ${signer}...`);
+      // const signer = await trezorSigner.getAddress();
+      // console.log(`\nSigning message: ${hash} with signer: ${signer}...`);
       console.log(
         "If you want to use another account index, set the ACCOUNT_INDEX env variable."
       );
