@@ -75,8 +75,8 @@ const deployWithDeployer = (params) => __awaiter(void 0, void 0, void 0, functio
     }
     const bytecodeWithConstructor = bytecode + encodedArgs;
     // encode the deployer `deploy` call
-    // const salt: BytesLike = randomBytes(32); // or use fixed ethers.utils.hexZeroPad("0x", 32);
-    const salt = ethers_1.ethers.utils.hexZeroPad("0x", 32);
+    const salt = (0, crypto_1.randomBytes)(32);
+    // const salt: BytesLike = ethers.utils.hexZeroPad("0x", 32);
     const deployerInterface = new utils_1.Interface(kinto.deployer.abi);
     const deployCalldata = deployerInterface.encodeFunctionData("deploy", [
         kintoWallet.address,
