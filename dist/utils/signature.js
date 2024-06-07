@@ -17,7 +17,7 @@ const ethers_1 = require("ethers");
 const utils_1 = require("ethers/lib/utils");
 const constants_1 = require("./constants");
 const trezorProvider_1 = __importDefault(require("./trezorProvider"));
-const signer_ledger_1 = require("@ethers-ext/signer-ledger");
+const ledgerProvider_1 = require("./ledgerProvider");
 const hw_transport_node_hid_1 = __importDefault(require("@ledgerhq/hw-transport-node-hid"));
 const constants_2 = require("./constants");
 const packUserOpForSig = (userOp) => {
@@ -84,7 +84,7 @@ const signWithHw = (hash_1, hwType_1, ...args_1) => __awaiter(void 0, [hash_1, h
         console.log(`\nUsing ${deviceName} as second signer...`);
         if (hwType === constants_1.LEDGER) {
             // @ts-ignore
-            const ledger = new signer_ledger_1.LedgerSigner(hw_transport_node_hid_1.default, provider);
+            const ledger = new ledgerProvider_1.LedgerSigner(hw_transport_node_hid_1.default, provider);
             const signer = yield ledger.getAddress();
             console.log(`\nSigning message: ${hash} with signer: ${signer}...`);
             console.log("If you want to use another account index, set the ACCOUNT_INDEX env variable.");
@@ -92,8 +92,8 @@ const signWithHw = (hash_1, hwType_1, ...args_1) => __awaiter(void 0, [hash_1, h
         }
         if (hwType === constants_1.TREZOR) {
             const trezorSigner = new trezorProvider_1.default(provider);
-            const signer = yield trezorSigner.getAddress();
-            console.log(`\nSigning message: ${hash} with signer: ${signer}...`);
+            // const signer = await trezorSigner.getAddress();
+            // console.log(`\nSigning message: ${hash} with signer: ${signer}...`);
             console.log("If you want to use another account index, set the ACCOUNT_INDEX env variable.");
             return yield trezorSigner.signMessage(hash);
         }

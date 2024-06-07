@@ -18,23 +18,32 @@ const signature_1 = require("../utils/signature");
 (() => __awaiter(void 0, void 0, void 0, function* () {
     if (!process.env.PRIVATE_KEY)
         throw new Error("PRIVATE_KEY missing");
-    // Counter contract bytecode
-    const privateKeys = [process.env.PRIVATE_KEY, constants_1.LEDGER];
-    const counterAddr = "0xCB514a2Eb87bfB4F651420551362793771661F43";
+    // function resetSigners(address[] calldata newSigners, uint8 policy) external;
+    const privateKeys = [process.env.PRIVATE_KEY, constants_1.TREZOR];
+    const kintoWalletAddr = "0x7403542bF2aF061eBF0DC16cAfA3068b90Fc1e75";
     const abi = [
-        "function count() view returns (uint256)",
-        "function increment()",
+        "function resetSigners(address[] calldata newSigners, uint8 policy) external",
+        "function owners(uint256) view returns (address)",
+        "function getOwnersCount() view returns (uint256)",
     ];
-    const counter = new ethers_1.ethers.Contract(counterAddr, abi, (0, signature_1.getKintoProvider)("7887"));
-    const tx = yield counter.populateTransaction.increment();
+    const wallet = new ethers_1.ethers.Contract(kintoWalletAddr, abi, (0, signature_1.getKintoProvider)("7887"));
+    const ownersCount = yield wallet.getOwnersCount();
+    console.log(`- Owners count: ${ownersCount}`);
+    let owners = [];
+    for (let i = 0; i < ownersCount; i++) {
+        const owner = yield wallet.owners(i);
+        owners.push(owner);
+        console.log(`- Owner[${i}]: ${owner}`);
+    }
+    owners.push("0x90E10C37d8d9e854e7775B0069728642A1F88610"); // ledger
+    const tx = yield wallet.populateTransaction.resetSigners(owners, 2);
     const params = {
         kintoWalletAddr: "0x7403542bF2aF061eBF0DC16cAfA3068b90Fc1e75",
         userOps: [tx],
         privateKeys,
-        // gasParams: { gasLimit: ethers.BigNumber.from("4000000") },
+        // gasParams: { gasLimit: BigNumber.from("4000000") }
     };
-    console.log(`- Count is: ${yield counter.count()}`);
-    console.log(`- Incrementing count...`);
+    console.log(`- Resetting signers count...`);
     yield (0, kinto_1.handleOps)(params);
-    console.log(`- Count is: ${yield counter.count()}`);
+    console.log(`- Owners count: ${yield wallet.getOwnersCount()}`);
 }))();

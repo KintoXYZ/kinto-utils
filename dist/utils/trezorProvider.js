@@ -42,21 +42,7 @@ class TrezorSigner extends ethers_1.Signer {
     constructor(provider) {
         super();
         this.provider = provider;
-        connect_1.default.init({
-            popup: false, // render your own UI
-            debug: false, // see what's going on inside connect
-            manifest: {
-                email: "support@kinto.xyz",
-                appUrl: "kinto.xyz",
-            },
-            transports: ["BridgeTransport"],
-        })
-            .then(() => {
-            // console.log("Trezor is ready!");
-        })
-            .catch((error) => {
-            console.log(error.message);
-        });
+        this.init();
         connect_1.default.on(connect_1.TRANSPORT_EVENT, (event) => {
             if (event.type === connect_1.TRANSPORT.ERROR) {
                 console.log("Transport is missing");
@@ -128,6 +114,23 @@ class TrezorSigner extends ethers_1.Signer {
                     payload: false,
                 });
             }
+        });
+    }
+    init() {
+        connect_1.default.init({
+            popup: false, // render your own UI
+            debug: false, // see what's going on inside connect
+            manifest: {
+                email: "support@kinto.xyz",
+                appUrl: "kinto.xyz",
+            },
+            transports: ["BridgeTransport"],
+        })
+            .then(() => {
+            // console.log("Trezor is ready!");
+        })
+            .catch((error) => {
+            console.log(error.message);
         });
     }
     getAddress() {
