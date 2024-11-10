@@ -143,7 +143,13 @@ exports.getKintoProvider = getKintoProvider;
 const checkPolicy = (kintoWallet, privateKeys) => __awaiter(void 0, void 0, void 0, function* () {
     const policy = yield kintoWallet.signerPolicy();
     const ownersLength = yield kintoWallet.getOwnersCount();
-    const requiredSigners = policy == 3 ? ownersLength : policy == 1 ? 1 : policy == 4 ? 2 : ownersLength - 1;
+    const requiredSigners = policy == 3
+        ? ownersLength
+        : policy == 1
+            ? 1
+            : policy == 4
+                ? 2
+                : ownersLength - 1;
     if (privateKeys.length < requiredSigners) {
         throw new Error(`Not enough private keys provided. Required ${requiredSigners}, got ${privateKeys.length}`);
     }

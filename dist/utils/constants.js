@@ -5,6 +5,17 @@ exports.kintoConfig = {
     "7887": {
         rpcUrl: "https://kinto-mainnet.calderachain.xyz/http",
         contracts: {
+            socketDL: {
+                address: "0x3e9727470C66B1e77034590926CDe0242B5A3dCc",
+                abi: [],
+            },
+            appRegistry: {
+                address: "0x5A2b641b84b0230C8e75F55d5afd27f4Dbd59d5b",
+                abi: [
+                    "function addAppContracts(address app, address[] calldata newContracts)",
+                    "function getAppMetadata(address target) view returns (tuple(uint256 tokenId, bool dsaEnabled, uint256 rateLimitPeriod, uint256 rateLimitNumber, uint256 gasLimitPeriod, uint256 gasLimitCost, string name, address[] devEOAs, address[] appContracts) memory)",
+                ],
+            },
             kintoID: {
                 address: "0xf369f78E3A0492CC4e96a90dae0728A38498e9c7",
                 abi: [
@@ -13,11 +24,15 @@ exports.kintoConfig = {
                 ],
             },
             kintoWallet: {
+                address: "",
                 abi: [
+                    "function appSigner(address) view returns (address)",
                     "function getNonce() view returns (uint256)",
                     "function whitelistApp(address[] calldata apps, bool[] calldata flags)",
                     "function execute(address dest, uint256 value, bytes calldata func)",
                     "function appWhitelist(address) view returns (bool)",
+                    "function whitelistAppAndSetKey(address app, address signer)",
+                    "function setAppKey(address app, address signer)",
                     "function setFunderWhitelist(address[] calldata newWhitelist, bool[] calldata flags)",
                     "function isFunderWhitelisted(address) view returns (bool)",
                     "function owners(uint256) view returns (address)",
@@ -57,6 +72,16 @@ exports.kintoConfig = {
     "412346": {
         rpcUrl: "https://kinto-upgrade-dev-2.rpc.caldera.xyz/http",
         contracts: {
+            socketDL: {
+                address: "",
+                abi: [],
+            },
+            appRegistry: {
+                address: "",
+                abi: [
+                    "function addAppContracts(address app, address[] calldata newContracts)",
+                ],
+            },
             kintoID: {
                 address: "0xCa41d9C3f13a8096356E6fddf0a29C51A938c410",
                 abi: [
@@ -65,6 +90,7 @@ exports.kintoConfig = {
                 ],
             },
             kintoWallet: {
+                address: "",
                 abi: [
                     "function getNonce() view returns (uint256)",
                     "function whitelistApp(address[] calldata apps, bool[] calldata flags)",

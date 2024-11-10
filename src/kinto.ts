@@ -77,9 +77,6 @@ const deployOnKinto = async (params: DeployOnKintoParams): Promise<string> => {
     contractAddr = await deployWithKintoFactory(params);
   }
 
-  // whitelist contract on Socket's kinto wallet
-  await whitelistApp(kintoWalletAddr, contractAddr, privateKeys, chainId);
-
   return contractAddr;
 };
 
@@ -298,6 +295,7 @@ const handleOps = async (
   } = params;
   const { contracts: kinto } = kintoConfig[chainId];
   const signer = new Wallet(privateKeys[0], getKintoProvider(chainId));
+  const signerAddress = await signer.getAddress();
 
   const entryPoint = new ethers.Contract(
     kinto.entryPoint.address as string,
@@ -316,6 +314,10 @@ const handleOps = async (
     userOps.length,
     !!paymasterAddr,
     chainId
+  );
+
+  const appSigner = await kintoWallet.appSigner(
+    (userOps[userOps.length - 1] as PopulatedTransaction).to
   );
 
   // convert into UserOperation array if not already
@@ -337,7 +339,8 @@ const handleOps = async (
         paymaster: paymasterAddr || "0x",
         nonce,
         callData,
-        privateKeys,
+        privateKeys:
+          appSigner === signerAddress ? [privateKeys[0]] : privateKeys,
       });
       nonce = nonce.add(1);
     }
@@ -346,7 +349,7 @@ const handleOps = async (
 
   const txResponse: TransactionResponse = await entryPoint.handleOps(
     userOps,
-    await signer.getAddress(),
+    signerAddress,
     {
       ...gasParams,
       type: 1, // non EIP-1559
@@ -358,6 +361,97 @@ const handleOps = async (
       "There were errors while executing the handleOps. Check the logs."
     );
   return receipt;
+};
+
+const addAppContracts = async (
+  kintoWalletAddr: string,
+  app: string,
+  contracts: string[],
+  privateKeys: string[],
+  chainId: string = "7887"
+): Promise<TransactionReceipt | undefined> => {
+  console.log(`\nAdding contracts to App Registry...`);
+  const { contracts: kinto } = kintoConfig[chainId];
+
+  const appRegistry = new ethers.Contract(
+    kinto.appRegistry.address,
+    kinto.appRegistry.abi,
+    getKintoProvider(chainId)
+  );
+
+  // Check if all contracts are already registered
+  const appMetadata = await appRegistry.getAppMetadata(app);
+  const existingContracts = new Set(appMetadata.appContracts);
+  const contractsToAdd = contracts.filter(
+    (contract) => !existingContracts.has(contract)
+  );
+
+  if (contractsToAdd.length === 0) {
+    console.log(`- All contracts are already registered for the app`);
+    return;
+  } else {
+    const txRequest = await appRegistry.populateTransaction.addAppContracts(
+      app,
+      contractsToAdd,
+      {
+        gasLimit: 4_000_000,
+      }
+    );
+
+    const tx = await handleOps({
+      kintoWalletAddr,
+      userOps: [txRequest],
+      privateKeys,
+      chainId,
+    });
+
+    console.log(
+      `- Successfully added ${contractsToAdd.length} contracts to App Registry`
+    );
+    return tx;
+  }
+};
+
+const whitelistAppAndSetKey = async (
+  kintoWalletAddr: string,
+  app: string,
+  privateKeys: string[],
+  chainId: string = "7887"
+): Promise<TransactionReceipt | undefined> => {
+  console.log(`\nWhitelisting contract and setting key on Kinto Wallet...`);
+  const { contracts: kinto } = kintoConfig[chainId];
+
+  const kintoWallet = new ethers.Contract(
+    kintoWalletAddr,
+    kinto.kintoWallet.abi,
+    getKintoProvider(chainId)
+  );
+
+  if (await kintoWallet.appWhitelist(app)) {
+    console.log(`- Contract is already whitelisted on Kinto Wallet`);
+    return;
+  } else {
+    const txRequest =
+      await kintoWallet.populateTransaction.whitelistAppAndSetKey(
+        app,
+        kintoWalletAddr, // Using KintoWallet as the signer
+        {
+          gasLimit: 4_000_000,
+        }
+      );
+
+    const tx = await handleOps({
+      kintoWalletAddr,
+      userOps: [txRequest],
+      privateKeys,
+      chainId,
+    });
+
+    console.log(
+      `- Contract successfully whitelisted and key set on Kinto Wallet`
+    );
+    return tx;
+  }
 };
 
 const whitelistApp = async (
@@ -393,7 +487,7 @@ const whitelistApp = async (
       privateKeys,
       chainId,
     });
-    console.log(`- Contract succesfully whitelisted on Kinto Wallet`);
+    console.log(`- Contract successfully whitelisted on Kinto Wallet`);
     return tx;
   }
 };
@@ -631,7 +725,9 @@ export {
   setFunderWhitelist,
   handleOps,
   deployOnKinto,
+  addAppContracts,
   whitelistApp,
+  whitelistAppAndSetKey,
   estimateGas,
   extractArgTypes,
 };
