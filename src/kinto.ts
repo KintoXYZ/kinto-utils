@@ -316,9 +316,12 @@ const handleOps = async (
     chainId
   );
 
+  console.log('userOps:', userOps)
+
   const appSigner = await kintoWallet.appSigner(
     (userOps[userOps.length - 1] as PopulatedTransaction).to
   );
+  console.log('appSigner:', appSigner)
 
   // convert into UserOperation array if not already
   if (!isUserOpArray(userOps)) {
