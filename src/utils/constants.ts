@@ -11,6 +11,7 @@ export const kintoConfig: KintoConfig = {
       appRegistry: {
         address: "0x5A2b641b84b0230C8e75F55d5afd27f4Dbd59d5b",
         abi: [
+          "function setSponsoredContracts(address app, address[] calldata targets, bool[] calldata flags)",
           "function addAppContracts(address app, address[] calldata newContracts)",
           "function getAppMetadata(address target) view returns (tuple(uint256 tokenId, bool dsaEnabled, uint256 rateLimitPeriod, uint256 rateLimitNumber, uint256 gasLimitPeriod, uint256 gasLimitCost, string name, address[] devEOAs, address[] appContracts) memory)",
         ],
