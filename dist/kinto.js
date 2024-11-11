@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractArgTypes = exports.estimateGas = exports.setAppKey = exports.whitelistAppAndSetKey = exports.whitelistApp = exports.addAppContracts = exports.deployOnKinto = exports.handleOps = exports.setFunderWhitelist = exports.isKinto = void 0;
+exports.extractArgTypes = exports.estimateGas = exports.setAppKey = exports.setSponsoredContracts = exports.whitelistAppAndSetKey = exports.whitelistApp = exports.addAppContracts = exports.deployOnKinto = exports.handleOps = exports.setFunderWhitelist = exports.isKinto = void 0;
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
 const ethers_1 = require("ethers");
@@ -190,12 +190,15 @@ const handleOps = (params) => __awaiter(void 0, void 0, void 0, function* () {
     const { contracts: kinto } = constants_1.kintoConfig[chainId];
     const signer = new ethers_1.Wallet(privateKeys[0], (0, signature_1.getKintoProvider)(chainId));
     const signerAddress = yield signer.getAddress();
+    const appRegistry = new ethers_1.ethers.Contract(kinto.appRegistry.address, kinto.appRegistry.abi, (0, signature_1.getKintoProvider)(chainId));
     const entryPoint = new ethers_1.ethers.Contract(kinto.entryPoint.address, kinto.entryPoint.abi, signer);
     const kintoWallet = new ethers_1.ethers.Contract(kintoWalletAddr, kinto.kintoWallet.abi, signer);
     const kintoWalletInterface = new utils_1.Interface(kinto.kintoWallet.abi);
     checkGas(paymasterAddr || kintoWalletAddr, userOps.length, !!paymasterAddr, chainId);
     const lastAddress = userOps[userOps.length - 1].to;
-    const appSigner = !!lastAddress ? yield kintoWallet.appSigner(lastAddress) : ZERO_ADDRESS;
+    const appSigner = !!lastAddress
+        ? yield kintoWallet.appSigner(yield appRegistry.getApp(lastAddress))
+        : ZERO_ADDRESS;
     // convert into UserOperation array if not already
     if (!isUserOpArray(userOps)) {
         // encode the contract function to be called
@@ -228,6 +231,36 @@ const handleOps = (params) => __awaiter(void 0, void 0, void 0, function* () {
     return receipt;
 });
 exports.handleOps = handleOps;
+const setSponsoredContracts = (kintoWalletAddr_1, app_1, contracts_1, flags_1, privateKeys_1, ...args_1) => __awaiter(void 0, [kintoWalletAddr_1, app_1, contracts_1, flags_1, privateKeys_1, ...args_1], void 0, function* (kintoWalletAddr, app, contracts, flags, privateKeys, chainId = "7887") {
+    console.log(`\nAdding sponsored contracts to App Registry...`);
+    const { contracts: kinto } = constants_1.kintoConfig[chainId];
+    const appRegistry = new ethers_1.ethers.Contract(kinto.appRegistry.address, kinto.appRegistry.abi, (0, signature_1.getKintoProvider)(chainId));
+    if (contracts.length === 0) {
+        throw new Error("Not contarcts to set as sponsored.");
+    }
+    const contractsToAdd = [];
+    for (const addr of contracts) {
+        if (!(yield appRegistry.isSponsored(app, addr))) {
+            contractsToAdd.push(addr);
+        }
+    }
+    if (contractsToAdd.length === 0) {
+        console.log(`- All contracts are already sponsored`);
+        return;
+    }
+    const txRequest = yield appRegistry.populateTransaction.setSponsoredContracts(app, contracts, flags, {
+        gasLimit: 4000000,
+    });
+    const tx = yield handleOps({
+        kintoWalletAddr,
+        userOps: [txRequest],
+        privateKeys,
+        chainId,
+    });
+    console.log(`- Successfully added ${contracts} sponsored contracts to App Registry`);
+    return tx;
+});
+exports.setSponsoredContracts = setSponsoredContracts;
 const addAppContracts = (kintoWalletAddr_1, app_1, contracts_1, privateKeys_1, ...args_1) => __awaiter(void 0, [kintoWalletAddr_1, app_1, contracts_1, privateKeys_1, ...args_1], void 0, function* (kintoWalletAddr, app, contracts, privateKeys, chainId = "7887") {
     console.log(`\nAdding contracts to App Registry...`);
     const { contracts: kinto } = constants_1.kintoConfig[chainId];

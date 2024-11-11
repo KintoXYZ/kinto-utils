@@ -18,7 +18,7 @@ import {
   id,
   getCreate2Address,
   BytesLike,
-  computeAddress
+  computeAddress,
 } from "ethers/lib/utils";
 import {
   TransactionResponse,
@@ -299,6 +299,12 @@ const handleOps = async (
   const signer = new Wallet(privateKeys[0], getKintoProvider(chainId));
   const signerAddress = await signer.getAddress();
 
+  const appRegistry = new ethers.Contract(
+    kinto.appRegistry.address,
+    kinto.appRegistry.abi,
+    getKintoProvider(chainId)
+  );
+
   const entryPoint = new ethers.Contract(
     kinto.entryPoint.address as string,
     kinto.entryPoint.abi,
@@ -319,7 +325,9 @@ const handleOps = async (
   );
 
   const lastAddress = (userOps[userOps.length - 1] as PopulatedTransaction).to;
-  const appSigner = !!lastAddress ? await kintoWallet.appSigner(lastAddress) : ZERO_ADDRESS;
+  const appSigner = !!lastAddress
+    ? await kintoWallet.appSigner(await appRegistry.getApp(lastAddress))
+    : ZERO_ADDRESS;
 
   // convert into UserOperation array if not already
   if (!isUserOpArray(userOps)) {
@@ -362,6 +370,62 @@ const handleOps = async (
       "There were errors while executing the handleOps. Check the logs."
     );
   return receipt;
+};
+
+const setSponsoredContracts = async (
+  kintoWalletAddr: string,
+  app: string,
+  contracts: string[],
+  flags: boolean[],
+  privateKeys: string[],
+  chainId: string = "7887"
+): Promise<TransactionReceipt | undefined> => {
+  console.log(`\nAdding sponsored contracts to App Registry...`);
+  const { contracts: kinto } = kintoConfig[chainId];
+
+  const appRegistry = new ethers.Contract(
+    kinto.appRegistry.address,
+    kinto.appRegistry.abi,
+    getKintoProvider(chainId)
+  );
+
+  if (contracts.length === 0) {
+    throw new Error("Not contarcts to set as sponsored.");
+  }
+
+  const contractsToAdd = [];
+
+  for (const addr of contracts) {
+    if (!(await appRegistry.isSponsored(app, addr))) {
+      contractsToAdd.push(addr);
+    }
+  }
+
+  if (contractsToAdd.length === 0) {
+    console.log(`- All contracts are already sponsored`)
+    return;
+  }
+
+  const txRequest = await appRegistry.populateTransaction.setSponsoredContracts(
+    app,
+    contracts,
+    flags,
+    {
+      gasLimit: 4_000_000,
+    }
+  );
+
+  const tx = await handleOps({
+    kintoWalletAddr,
+    userOps: [txRequest],
+    privateKeys,
+    chainId,
+  });
+
+  console.log(
+    `- Successfully added ${contracts} sponsored contracts to App Registry`
+  );
+  return tx;
 };
 
 const addAppContracts = async (
@@ -412,6 +476,7 @@ const addAppContracts = async (
     return tx;
   }
 };
+
 const setAppKey = async (
   kintoWalletAddr: string,
   app: string,
@@ -448,9 +513,7 @@ const setAppKey = async (
       chainId,
     });
 
-    console.log(
-      `- Contract successfully set app key on Kinto Wallet`
-    );
+    console.log(`- Contract successfully set app key on Kinto Wallet`);
     return tx;
   }
 };
@@ -773,6 +836,7 @@ export {
   addAppContracts,
   whitelistApp,
   whitelistAppAndSetKey,
+  setSponsoredContracts,
   setAppKey,
   estimateGas,
   extractArgTypes,
