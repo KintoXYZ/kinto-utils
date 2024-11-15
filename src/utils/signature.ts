@@ -72,7 +72,8 @@ const signUserOp = async (
   const ethSignedHash = hashMessage(arrayify(hash));
 
   // check policy and required signers
-  await checkPolicy(kintoWallet, privateKeys);
+  // not useful at the moment as we only use a specific setup
+  // await checkPolicy(kintoWallet, privateKeys);
 
   let signature = "0x";
   for (const privateKey of privateKeys) {
@@ -180,7 +181,13 @@ const checkPolicy = async (kintoWallet: Contract, privateKeys: string[]) => {
   const policy = await kintoWallet.signerPolicy();
   const ownersLength = await kintoWallet.getOwnersCount();
   const requiredSigners =
-    policy == 3 ? ownersLength : policy == 1 ? 1 : policy == 4 ? 2 : ownersLength - 1;
+    policy == 3
+      ? ownersLength
+      : policy == 1
+      ? 1
+      : policy == 4
+      ? 2
+      : ownersLength - 1;
 
   if (privateKeys.length < requiredSigners) {
     throw new Error(

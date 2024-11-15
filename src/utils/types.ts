@@ -82,7 +82,7 @@ export type DeployOnKintoParams = {
 };
 
 export interface Contract {
-  address?: string;
+  address: string;
   abi: string[];
 }
 
@@ -90,6 +90,8 @@ export interface KintoDataContracts {
   kintoID: Contract;
   kintoWallet: Contract;
   factory: Contract;
+  socketDL: Contract;
+  appRegistry: Contract;
   entryPoint: Contract;
   paymaster: Contract;
   deployer: Contract;

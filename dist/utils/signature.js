@@ -57,7 +57,8 @@ const signUserOp = (kintoWalletAddr, userOp, chainId, privateKeys) => __awaiter(
     const hash = yield getUserOpHash(userOp, chainId);
     const ethSignedHash = (0, utils_1.hashMessage)((0, utils_1.arrayify)(hash));
     // check policy and required signers
-    yield checkPolicy(kintoWallet, privateKeys);
+    // not useful at the moment as we only use a specific setup
+    // await checkPolicy(kintoWallet, privateKeys);
     let signature = "0x";
     for (const privateKey of privateKeys) {
         if (privateKey == constants_1.TREZOR || privateKey == constants_1.LEDGER) {
@@ -143,7 +144,13 @@ exports.getKintoProvider = getKintoProvider;
 const checkPolicy = (kintoWallet, privateKeys) => __awaiter(void 0, void 0, void 0, function* () {
     const policy = yield kintoWallet.signerPolicy();
     const ownersLength = yield kintoWallet.getOwnersCount();
-    const requiredSigners = policy == 3 ? ownersLength : policy == 1 ? 1 : policy == 4 ? 2 : ownersLength - 1;
+    const requiredSigners = policy == 3
+        ? ownersLength
+        : policy == 1
+            ? 1
+            : policy == 4
+                ? 2
+                : ownersLength - 1;
     if (privateKeys.length < requiredSigners) {
         throw new Error(`Not enough private keys provided. Required ${requiredSigners}, got ${privateKeys.length}`);
     }

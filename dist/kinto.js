@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractArgTypes = exports.estimateGas = exports.whitelistApp = exports.deployOnKinto = exports.handleOps = exports.setFunderWhitelist = exports.isKinto = void 0;
+exports.extractArgTypes = exports.estimateGas = exports.setAppKey = exports.setSponsoredContracts = exports.whitelistAppAndSetKey = exports.whitelistApp = exports.addAppContracts = exports.deployOnKinto = exports.handleOps = exports.setFunderWhitelist = exports.isKinto = void 0;
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
 const ethers_1 = require("ethers");
@@ -19,6 +19,7 @@ const constants_1 = require("./utils/constants");
 const crypto_1 = require("crypto");
 // gas estimation helpers
 const COST_OF_POST = (0, utils_1.parseUnits)("200000", "wei");
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 // deployer utils
 const deployOnKinto = (params) => __awaiter(void 0, void 0, void 0, function* () {
     const { chainId, kintoWalletAddr, bytecode, abi, argTypes, args, privateKeys, } = params;
@@ -48,8 +49,6 @@ const deployOnKinto = (params) => __awaiter(void 0, void 0, void 0, function* ()
         };
         contractAddr = yield deployWithKintoFactory(params);
     }
-    // whitelist contract on Socket's kinto wallet
-    yield whitelistApp(kintoWalletAddr, contractAddr, privateKeys, chainId);
     return contractAddr;
 });
 exports.deployOnKinto = deployOnKinto;
@@ -190,10 +189,16 @@ const handleOps = (params) => __awaiter(void 0, void 0, void 0, function* () {
     let { kintoWalletAddr, userOps, privateKeys, chainId = "7887", values = [], gasParams = {}, paymasterAddr, } = params;
     const { contracts: kinto } = constants_1.kintoConfig[chainId];
     const signer = new ethers_1.Wallet(privateKeys[0], (0, signature_1.getKintoProvider)(chainId));
+    const signerAddress = yield signer.getAddress();
+    const appRegistry = new ethers_1.ethers.Contract(kinto.appRegistry.address, kinto.appRegistry.abi, (0, signature_1.getKintoProvider)(chainId));
     const entryPoint = new ethers_1.ethers.Contract(kinto.entryPoint.address, kinto.entryPoint.abi, signer);
     const kintoWallet = new ethers_1.ethers.Contract(kintoWalletAddr, kinto.kintoWallet.abi, signer);
     const kintoWalletInterface = new utils_1.Interface(kinto.kintoWallet.abi);
     checkGas(paymasterAddr || kintoWalletAddr, userOps.length, !!paymasterAddr, chainId);
+    const lastAddress = userOps[userOps.length - 1].to;
+    const appSigner = !!lastAddress
+        ? yield kintoWallet.appSigner(yield appRegistry.getApp(lastAddress))
+        : ZERO_ADDRESS;
     // convert into UserOperation array if not already
     if (!isUserOpArray(userOps)) {
         // encode the contract function to be called
@@ -213,19 +218,125 @@ const handleOps = (params) => __awaiter(void 0, void 0, void 0, function* () {
                 paymaster: paymasterAddr || "0x",
                 nonce,
                 callData,
-                privateKeys,
+                privateKeys: appSigner === signerAddress ? [privateKeys[0]] : privateKeys,
             });
             nonce = nonce.add(1);
         }
         userOps = ops;
     }
-    const txResponse = yield entryPoint.handleOps(userOps, yield signer.getAddress(), Object.assign(Object.assign({}, gasParams), { type: 1 }));
+    const txResponse = yield entryPoint.handleOps(userOps, signerAddress, Object.assign(Object.assign({}, gasParams), { type: 1 }));
     const receipt = yield txResponse.wait();
     if (hasErrors(receipt))
         throw new Error("There were errors while executing the handleOps. Check the logs.");
     return receipt;
 });
 exports.handleOps = handleOps;
+const setSponsoredContracts = (kintoWalletAddr_1, app_1, contracts_1, flags_1, privateKeys_1, ...args_1) => __awaiter(void 0, [kintoWalletAddr_1, app_1, contracts_1, flags_1, privateKeys_1, ...args_1], void 0, function* (kintoWalletAddr, app, contracts, flags, privateKeys, chainId = "7887") {
+    console.log(`\nAdding sponsored contracts to App Registry...`);
+    const { contracts: kinto } = constants_1.kintoConfig[chainId];
+    const appRegistry = new ethers_1.ethers.Contract(kinto.appRegistry.address, kinto.appRegistry.abi, (0, signature_1.getKintoProvider)(chainId));
+    if (contracts.length === 0) {
+        throw new Error("Not contarcts to set as sponsored.");
+    }
+    const contractsToAdd = [];
+    for (const addr of contracts) {
+        if (!(yield appRegistry.isSponsored(app, addr))) {
+            contractsToAdd.push(addr);
+        }
+    }
+    if (contractsToAdd.length === 0) {
+        console.log(`- All contracts are already sponsored`);
+        return;
+    }
+    const txRequest = yield appRegistry.populateTransaction.setSponsoredContracts(app, contracts, flags, {
+        gasLimit: 4000000,
+    });
+    const tx = yield handleOps({
+        kintoWalletAddr,
+        userOps: [txRequest],
+        privateKeys,
+        chainId,
+    });
+    console.log(`- Successfully added ${contracts} sponsored contracts to App Registry`);
+    return tx;
+});
+exports.setSponsoredContracts = setSponsoredContracts;
+const addAppContracts = (kintoWalletAddr_1, app_1, contracts_1, privateKeys_1, ...args_1) => __awaiter(void 0, [kintoWalletAddr_1, app_1, contracts_1, privateKeys_1, ...args_1], void 0, function* (kintoWalletAddr, app, contracts, privateKeys, chainId = "7887") {
+    console.log(`\nAdding contracts to App Registry...`);
+    const { contracts: kinto } = constants_1.kintoConfig[chainId];
+    const appRegistry = new ethers_1.ethers.Contract(kinto.appRegistry.address, kinto.appRegistry.abi, (0, signature_1.getKintoProvider)(chainId));
+    // Check if all contracts are already registered
+    const appMetadata = yield appRegistry.getAppMetadata(app);
+    const existingContracts = new Set(appMetadata.appContracts);
+    const contractsToAdd = contracts.filter((contract) => !existingContracts.has(contract));
+    if (contractsToAdd.length === 0) {
+        console.log(`- All contracts are already registered for the app`);
+        return;
+    }
+    else {
+        const txRequest = yield appRegistry.populateTransaction.addAppContracts(app, contractsToAdd, {
+            gasLimit: 4000000,
+        });
+        const tx = yield handleOps({
+            kintoWalletAddr,
+            userOps: [txRequest],
+            privateKeys,
+            chainId,
+        });
+        console.log(`- Successfully added ${contractsToAdd.length} contracts to App Registry`);
+        return tx;
+    }
+});
+exports.addAppContracts = addAppContracts;
+const setAppKey = (kintoWalletAddr_1, app_1, signer_1, privateKeys_1, ...args_1) => __awaiter(void 0, [kintoWalletAddr_1, app_1, signer_1, privateKeys_1, ...args_1], void 0, function* (kintoWalletAddr, app, signer, privateKeys, chainId = "7887") {
+    console.log(`\nSetting app key on Kinto Wallet to ${signer}`);
+    const { contracts: kinto } = constants_1.kintoConfig[chainId];
+    const kintoWallet = new ethers_1.ethers.Contract(kintoWalletAddr, kinto.kintoWallet.abi, (0, signature_1.getKintoProvider)(chainId));
+    if ((yield kintoWallet.appSigner(app)) == signer) {
+        console.log(`- App signer is already set on Kinto Wallet`);
+        return;
+    }
+    else {
+        const txRequest = yield kintoWallet.populateTransaction.whitelistAppAndSetKey(app, signer, // Using signer0 as the signer
+        {
+            gasLimit: 4000000,
+        });
+        const tx = yield handleOps({
+            kintoWalletAddr,
+            userOps: [txRequest],
+            privateKeys,
+            chainId,
+        });
+        console.log(`- Contract successfully set app key on Kinto Wallet`);
+        return tx;
+    }
+});
+exports.setAppKey = setAppKey;
+const whitelistAppAndSetKey = (kintoWalletAddr_1, app_1, privateKeys_1, ...args_1) => __awaiter(void 0, [kintoWalletAddr_1, app_1, privateKeys_1, ...args_1], void 0, function* (kintoWalletAddr, app, privateKeys, chainId = "7887") {
+    console.log(`\nWhitelisting contract and setting key on Kinto Wallet...`);
+    const { contracts: kinto } = constants_1.kintoConfig[chainId];
+    const kintoWallet = new ethers_1.ethers.Contract(kintoWalletAddr, kinto.kintoWallet.abi, (0, signature_1.getKintoProvider)(chainId));
+    const signer0 = (0, utils_1.computeAddress)(privateKeys[0]);
+    if ((yield kintoWallet.appSigner(app)) == signer0) {
+        console.log(`- App signer is already set on Kinto Wallet`);
+        return;
+    }
+    else {
+        const txRequest = yield kintoWallet.populateTransaction.whitelistAppAndSetKey(app, signer0, // Using signer0 as the signer
+        {
+            gasLimit: 4000000,
+        });
+        const tx = yield handleOps({
+            kintoWalletAddr,
+            userOps: [txRequest],
+            privateKeys,
+            chainId,
+        });
+        console.log(`- Contract successfully whitelisted and key set on Kinto Wallet`);
+        return tx;
+    }
+});
+exports.whitelistAppAndSetKey = whitelistAppAndSetKey;
 const whitelistApp = (kintoWalletAddr_1, app_1, privateKeys_1, ...args_1) => __awaiter(void 0, [kintoWalletAddr_1, app_1, privateKeys_1, ...args_1], void 0, function* (kintoWalletAddr, app, privateKeys, chainId = "7887") {
     console.log(`\nWhitelisting contract on Kinto Wallet...`);
     const { contracts: kinto } = constants_1.kintoConfig[chainId];
@@ -244,7 +355,7 @@ const whitelistApp = (kintoWalletAddr_1, app_1, privateKeys_1, ...args_1) => __a
             privateKeys,
             chainId,
         });
-        console.log(`- Contract succesfully whitelisted on Kinto Wallet`);
+        console.log(`- Contract successfully whitelisted on Kinto Wallet`);
         return tx;
     }
 });

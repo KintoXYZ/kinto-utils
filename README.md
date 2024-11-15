@@ -1,4 +1,4 @@
-# Kinto Utils (DRAFT)
+# Kinto Utils
 
 ## Install
 
@@ -18,6 +18,6 @@ yarn install
 
 `npx ts-node src/samples/deployContract.ts`
 
-## Incremenet counter
+## Increment counter
 
 `npx ts-node src/samples/callContract.ts`
