@@ -402,7 +402,7 @@ const setSponsoredContracts = async (
   }
 
   if (contractsToAdd.length === 0) {
-    console.log(`- All contracts are already sponsored`)
+    console.log(`- All contracts are already sponsored`);
     return;
   }
 
